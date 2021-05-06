@@ -1,0 +1,53 @@
+version: '3.7'
+# https://betterprogramming.pub/zero-downtime-deployment-with-docker-swarm-d84d8d9d9a14
+
+services:
+  ghost:
+    image: ghost:{{cookiecutter.ghost_version}}-alpine
+    volumes: 
+      - content:/var/lib/ghost/content
+    networks:
+      - {{cookiecutter.traefik_name}}
+    # Uncomment two lines bellow for docker compose
+    # ports:
+    #   - "2368:2368"
+    deploy:
+      # Used only by docker swarm
+      # Docker compose will ignore this
+      update_config:
+        order: start-first # for zero downtime deployment
+        parallelism: 2
+        delay: 10s
+        failure_action: rollback
+      rollback_config:
+        parallelism: 0
+        order: stop-first
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network={{cookiecutter.traefik_name}}
+        - traefik.constraint-label={{cookiecutter.traefik_name}}
+        - traefik.http.services.{{cookiecutter.deployment_name}}-web.loadbalancer.server.port=2368
+        # HTTP rule
+        - traefik.http.routers.{{cookiecutter.deployment_name}}-web-http.rule=Host(`{{cookiecutter.domain}}`){%- if cookiecutter.using_www == "Yes" -%}||Host(`www.{{cookiecutter.domain}}`){% endif %}
+        - traefik.http.routers.{{cookiecutter.deployment_name}}-web-http.entrypoints=http
+        - traefik.http.routers.{{cookiecutter.deployment_name}}-web-http.middlewares=https-redirect
+        # HTTPS rule
+        - traefik.http.routers.{{cookiecutter.deployment_name}}-web-https.rule=Host(`{{cookiecutter.domain}}`){%- if cookiecutter.using_www == "Yes" -%}||Host(`www.{{cookiecutter.domain}}`){% endif %}
+        - traefik.http.routers.{{cookiecutter.deployment_name}}-web-https.entrypoints=https
+        - traefik.http.routers.{{cookiecutter.deployment_name}}-web-https.tls=true
+        - traefik.http.routers.{{cookiecutter.deployment_name}}-web-https.tls.certresolver=le
+
+volumes:
+  content:
+    external:
+      name: {{cookiecutter.deployment_name}}-volume
+
+networks:
+  {{cookiecutter.traefik_name}}:
+    external: true
+    

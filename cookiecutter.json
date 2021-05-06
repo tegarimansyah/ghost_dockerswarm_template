@@ -1,0 +1,7 @@
+{
+    "ghost_version": ["3","4"],
+    "deployment_name": "tegar_blog",
+    "using_www": ["Yes", "No"],
+    "domain": "urusan.id",
+    "traefik_name": "traefik-public"
+}
